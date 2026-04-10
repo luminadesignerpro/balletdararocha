@@ -41,8 +41,15 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Navbar com logo */}
+      <nav className="bg-card py-4 px-6 shadow-sm">
+        <div className="container mx-auto flex justify-center">
+          <img src={logoImg} alt="Ballet Dara Rocha logo" className="h-28 md:h-36 lg:h-44" />
+        </div>
+      </nav>
+
       {/* Hero */}
-      <section className="relative min-h-screen flex items-center overflow-hidden">
+      <section className="relative min-h-[85vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <img src={heroImg} alt="Ballet studio" className="w-full h-full object-cover" width={1920} height={1080} />
           <div className="absolute inset-0 bg-gradient-to-r from-foreground/80 via-foreground/50 to-transparent" />
@@ -50,9 +57,6 @@ const Index = () => {
 
         <div className="relative z-10 container mx-auto px-6 py-20">
           <div className="max-w-2xl text-primary-foreground">
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 inline-block mb-6 shadow-lg">
-              <img src={logoImg} alt="Ballet Dara Rocha logo" className="w-80 md:w-[28rem] lg:w-[32rem]" />
-            </div>
             <p className="text-primary-foreground/80 text-sm tracking-widest uppercase mb-4 font-light">
               Escola de Ballet · Itaitinga, CE
             </p>
