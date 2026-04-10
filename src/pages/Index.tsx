@@ -50,7 +50,9 @@ const Index = () => {
 
         <div className="relative z-10 container mx-auto px-6 py-20">
           <div className="max-w-2xl text-primary-foreground">
-            <img src={logoImg} alt="Ballet Dara Rocha logo" className="w-72 md:w-96 mb-6 drop-shadow-lg" />
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 inline-block mb-6 shadow-lg">
+              <img src={logoImg} alt="Ballet Dara Rocha logo" className="w-80 md:w-[28rem] lg:w-[32rem]" />
+            </div>
             <p className="text-primary-foreground/80 text-sm tracking-widest uppercase mb-4 font-light">
               Escola de Ballet · Itaitinga, CE
             </p>
