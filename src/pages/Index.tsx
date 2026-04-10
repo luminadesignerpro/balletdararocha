@@ -156,6 +156,35 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Galeria */}
+      <section className="py-24">
+        <div className="container mx-auto px-6">
+          <p className="text-center text-sm tracking-widest uppercase text-muted-foreground mb-2">Nosso dia a dia</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-foreground">Galeria de Aulas</h2>
+
+          <div className="max-w-5xl mx-auto px-12">
+            <Carousel opts={{ align: "start", loop: true }}>
+              <CarouselContent className="-ml-4">
+                {galeriaImgs.map((img, i) => (
+                  <CarouselItem key={i} className="pl-4 basis-full md:basis-1/2 lg:basis-1/3">
+                    <div className="overflow-hidden rounded-xl aspect-[3/4]">
+                      <img
+                        src={img.src}
+                        alt={img.alt}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                      />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
+          </div>
+        </div>
+      </section>
+
       {/* Depoimentos */}
       <section className="py-24 bg-secondary/50">
         <div className="container mx-auto px-6">
