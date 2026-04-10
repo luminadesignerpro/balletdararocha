@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, GraduationCap, Heart, Star, Clock, Users, Award, ChevronRight } from "lucide-react";
+import { Shield, GraduationCap, Heart, Star, Clock, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
