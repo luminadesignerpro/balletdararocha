@@ -4,8 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import heroImg from "@/assets/hero-ballet.jpg";
 import logoImg from "@/assets/logo-dara-rocha.png";
+import galeria1 from "@/assets/galeria-1.jpg";
+import galeria2 from "@/assets/galeria-2.jpg";
+import galeria3 from "@/assets/galeria-3.jpg";
+import galeria4 from "@/assets/galeria-4.jpg";
+import galeria5 from "@/assets/galeria-5.jpg";
+import galeria6 from "@/assets/galeria-6.jpg";
+
+const galeriaImgs = [
+  { src: galeria1, alt: "Alunas dançando ballet" },
+  { src: galeria2, alt: "Aula de ballet na barra" },
+  { src: galeria3, alt: "Alunas praticando na barra" },
+  { src: galeria4, alt: "Aluna fazendo alongamento" },
+  { src: galeria5, alt: "Professora ensinando na barra" },
+  { src: galeria6, alt: "Professora auxiliando aluna" },
+];
 
 const stats = [
   { value: "10+", label: "anos de experiência" },
@@ -136,6 +152,35 @@ const Index = () => {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Galeria */}
+      <section className="py-24">
+        <div className="container mx-auto px-6">
+          <p className="text-center text-sm tracking-widest uppercase text-muted-foreground mb-2">Nosso dia a dia</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-foreground">Galeria de Aulas</h2>
+
+          <div className="max-w-5xl mx-auto px-12">
+            <Carousel opts={{ align: "start", loop: true }}>
+              <CarouselContent className="-ml-4">
+                {galeriaImgs.map((img, i) => (
+                  <CarouselItem key={i} className="pl-4 basis-full md:basis-1/2 lg:basis-1/3">
+                    <div className="overflow-hidden rounded-xl aspect-[3/4]">
+                      <img
+                        src={img.src}
+                        alt={img.alt}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                      />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
           </div>
         </div>
       </section>
