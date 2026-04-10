@@ -4,8 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import heroImg from "@/assets/hero-ballet.jpg";
 import logoImg from "@/assets/logo-dara-rocha.png";
+import galeria1 from "@/assets/galeria-1.jpg";
+import galeria2 from "@/assets/galeria-2.jpg";
+import galeria3 from "@/assets/galeria-3.jpg";
+import galeria4 from "@/assets/galeria-4.jpg";
+import galeria5 from "@/assets/galeria-5.jpg";
+import galeria6 from "@/assets/galeria-6.jpg";
+
+const galeriaImgs = [
+  { src: galeria1, alt: "Alunas dançando ballet" },
+  { src: galeria2, alt: "Aula de ballet na barra" },
+  { src: galeria3, alt: "Alunas praticando na barra" },
+  { src: galeria4, alt: "Aluna fazendo alongamento" },
+  { src: galeria5, alt: "Professora ensinando na barra" },
+  { src: galeria6, alt: "Professora auxiliando aluna" },
+];
 
 const stats = [
   { value: "10+", label: "anos de experiência" },
