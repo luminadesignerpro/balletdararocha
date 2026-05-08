@@ -6,44 +6,35 @@
 
 @layer base {
   :root {
-    --background: 30 25% 97%;
-    --foreground: 340 10% 15%;
+    --background: 40 30% 98%; /* Warm Champagne Background */
+    --foreground: 75 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 340 10% 15%;
+    --card-foreground: 75 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 340 10% 15%;
+    --popover-foreground: 75 25% 12%;
 
-    --primary: 345 40% 55%;
+    --primary: 75 35% 30%; /* Deep Olive Green - Professional & Solid */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 30 20% 93%;
-    --secondary-foreground: 340 10% 20%;
+    --secondary: 15 75% 65%; /* Vibrant Salmon - Full of life */
+    --secondary-foreground: 15 10% 10%;
 
-    --muted: 30 15% 94%;
-    --muted-foreground: 340 5% 45%;
+    --muted: 75 10% 95%;
+    --muted-foreground: 75 15% 45%;
 
-    --accent: 140 25% 40%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 15 80% 90%; /* Soft Salmon Glow */
+    --accent-foreground: 15 60% 30%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 30 15% 88%;
-    --input: 30 15% 88%;
-    --ring: 345 40% 55%;
+    --border: 75 20% 90%;
+    --input: 75 20% 90%;
+    --ring: 75 35% 30%;
 
-    --radius: 0.75rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --radius: 1rem;
   }
 
   .dark {
@@ -66,20 +57,16 @@
     --border: 340 8% 20%;
     --input: 340 8% 20%;
     --ring: 345 40% 60%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 
   body {
