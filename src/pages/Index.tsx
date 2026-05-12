@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Shield, GraduationCap, Heart, Star, Clock, ChevronRight, MapPin, Phone, Instagram, Mail, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -68,7 +69,28 @@ const Index = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ mae: "", crianca: "", whatsapp: "", turma: "" });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [dynamicGaleria, setDynamicGaleria] = useState<any[]>([]);
   const whatsappUrl = "https://wa.me/5585986031932";
+
+  useEffect(() => {
+    const fetchGaleria = async () => {
+      const { data } = await supabase.storage.from('alunas-media').list('galeria', {
+        limit: 15,
+        sortBy: { column: 'name', order: 'desc' },
+      });
+      if (data && data.length > 0) {
+        const files = data.filter(f => f.name !== '.emptyFolderPlaceholder');
+        const urls = files.map(f => {
+          const { data: { publicUrl } } = supabase.storage.from('alunas-media').getPublicUrl(`galeria/${f.name}`);
+          return { src: publicUrl, alt: "Momento Ballet Dara Rocha" };
+        });
+        if (urls.length > 0) setDynamicGaleria(urls);
+      }
+    };
+    fetchGaleria();
+  }, []);
+
+  const currentGaleria = dynamicGaleria.length > 0 ? dynamicGaleria : galeriaImgs;
 
   const handleAgendar = () => {
     window.open(whatsappUrl, "_blank");
@@ -282,7 +304,7 @@ const Index = () => {
 
           <Carousel opts={{ align: "start", loop: true }} className="w-full">
             <CarouselContent className="-ml-4">
-              {galeriaImgs.map((img, i) => (
+              {currentGaleria.map((img, i) => (
                 <CarouselItem key={i} className="pl-4 basis-full md:basis-1/2 lg:basis-1/3">
                   <div className="overflow-hidden rounded-2xl aspect-[4/5] shadow-lg">
                     <img

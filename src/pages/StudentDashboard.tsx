@@ -217,6 +217,7 @@ const StudentDashboard = () => {
             </Card>
           </div>
         </div>
+        </div>
       </main>
     </div>
   );

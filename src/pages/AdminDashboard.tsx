@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { LayoutDashboard, Users, DollarSign, MessageSquare, LogOut, Settings, QrCode, Search, Trash2, Edit3, Camera } from "lucide-react";
+import { LayoutDashboard, Users, DollarSign, MessageSquare, LogOut, Settings, QrCode, Search, Trash2, Edit3, Camera, Image as ImageIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
@@ -21,15 +21,31 @@ const AdminDashboard = () => {
   const [editingAluna, setEditingAluna] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("geral");
-  
+  const [galeriaImgs, setGaleriaImgs] = useState<any[]>([]);
   // Cálculos dinâmicos baseados nos dados reais
   const totalBailarinas = alunas.length;
   const faturamentoMensal = alunas.reduce((acc, aluna) => acc + (Number(aluna.mensalidade) || 0), 0);
 
-  // Buscar alunas ao carregar
+  // Buscar dados ao carregar
   useEffect(() => {
     fetchAlunas();
+    fetchGaleria();
   }, []);
+
+  const fetchGaleria = async () => {
+    const { data, error } = await supabase.storage.from('alunas-media').list('galeria', {
+      limit: 100,
+      sortBy: { column: 'name', order: 'desc' },
+    });
+    if (data) {
+      const files = data.filter(f => f.name !== '.emptyFolderPlaceholder');
+      const urls = files.map(f => {
+        const { data: { publicUrl } } = supabase.storage.from('alunas-media').getPublicUrl(`galeria/${f.name}`);
+        return { name: f.name, url: publicUrl };
+      });
+      setGaleriaImgs(urls);
+    }
+  };
 
   const fetchAlunas = async () => {
     const { data, error } = await supabase.from('alunas').select('*').order('created_at', { ascending: false });
@@ -148,6 +164,40 @@ const AdminDashboard = () => {
     }
     setLoading(false);
   };
+  const handleUploadGaleria = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `galeria/${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('alunas-media')
+      .upload(fileName, file);
+
+    if (uploadError) {
+      toast.error("Erro no upload: " + uploadError.message);
+    } else {
+      toast.success("Foto adicionada à galeria!");
+      fetchGaleria();
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteGaleriaFoto = async (fileName: string) => {
+    const { error } = await supabase.storage
+      .from('alunas-media')
+      .remove([`galeria/${fileName}`]);
+    
+    if (error) {
+      toast.error("Erro ao excluir foto");
+    } else {
+      toast.success("Foto removida da galeria!");
+      fetchGaleria();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] flex overflow-hidden">
       {/* Sidebar - Design Elegante */}
@@ -162,6 +212,7 @@ const AdminDashboard = () => {
             { id: 'geral', label: 'Dashboard', icon: LayoutDashboard },
             { id: 'alunas', label: 'Alunas', icon: Users },
             { id: 'financeiro', label: 'Financeiro', icon: DollarSign },
+            { id: 'galeria', label: 'Galeria do Site', icon: ImageIcon },
             { id: 'whatsapp', label: 'WhatsApp Bot', icon: MessageSquare },
           ].map((item) => (
             <Button
@@ -204,6 +255,7 @@ const AdminDashboard = () => {
             <TabsTrigger value="geral" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Geral</TabsTrigger>
             <TabsTrigger value="alunas" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Matrículas</TabsTrigger>
             <TabsTrigger value="financeiro" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Financeiro</TabsTrigger>
+            <TabsTrigger value="galeria" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Galeria</TabsTrigger>
             <TabsTrigger value="whatsapp" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Bot</TabsTrigger>
           </TabsList>
 
@@ -460,6 +512,47 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="galeria" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <Card className="border-none shadow-2xl bg-white rounded-[3rem] overflow-hidden">
+              <div className="bg-[#4A5D23] p-10 text-white flex justify-between items-center">
+                <div>
+                  <h3 className="text-3xl font-serif italic">Galeria do Site</h3>
+                  <p className="text-white/50 text-sm mt-1">Gerencie as fotos que aparecem na página inicial pública</p>
+                </div>
+                <ImageIcon className="w-12 h-12 text-[#E89A7B]" />
+              </div>
+              <CardContent className="p-10">
+                <div className="flex justify-between items-center mb-8">
+                  <h4 className="text-lg font-bold text-[#4A5D23]">Fotos Publicadas ({galeriaImgs.length})</h4>
+                  <label className="bg-[#E89A7B] hover:bg-[#D4896D] text-white px-6 py-3 rounded-xl shadow-lg cursor-pointer font-bold transition-all active:scale-95 inline-flex items-center gap-2">
+                    <Camera className="w-5 h-5" />
+                    {loading ? "Enviando..." : "Adicionar Nova Foto"}
+                    <input type="file" className="hidden" accept="image/*" onChange={handleUploadGaleria} disabled={loading} />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  {galeriaImgs.length === 0 && !loading ? (
+                    <div className="col-span-full py-16 text-center text-muted-foreground border-2 border-dashed rounded-2xl">
+                      Nenhuma foto na galeria ainda. Faça upload para substituir as fotos padrão do site.
+                    </div>
+                  ) : (
+                    galeriaImgs.map((img) => (
+                      <div key={img.name} className="group relative aspect-[4/5] rounded-2xl overflow-hidden shadow-md">
+                        <img src={img.url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Galeria" />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Button variant="destructive" size="icon" className="rounded-full shadow-2xl scale-0 group-hover:scale-100 transition-transform" onClick={() => handleDeleteGaleriaFoto(img.name)}>
+                            <Trash2 className="w-5 h-5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
