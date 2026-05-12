@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Shield, GraduationCap, Heart, Star, Clock, ChevronRight, MapPin, Phone, Instagram, Mail, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,6 +65,7 @@ const depoimentos = [
 ];
 
 const Index = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({ mae: "", crianca: "", whatsapp: "", turma: "" });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const whatsappUrl = "https://wa.me/5585986031932";
@@ -107,7 +109,7 @@ const Index = () => {
             <a href="#galeria" className="hover:text-primary transition-colors">Galeria</a>
             <a href="#contato" className="hover:text-primary transition-colors">Contato</a>
             <button onClick={() => navigate("/login")} className="text-secondary font-bold hover:text-secondary/80 transition-colors border-l border-muted pl-8 ml-4 hidden lg:block">
-              Portal do Aluno
+              Área de Acesso
             </button>
           </div>
           <div className="flex items-center gap-4">
@@ -134,7 +136,7 @@ const Index = () => {
               <a href="#turmas" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-muted">Turmas</a>
               <a href="#galeria" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-muted">Galeria</a>
               <a href="#contato" onClick={() => setIsMenuOpen(false)} className="py-2 border-b border-muted">Contato</a>
-              <a onClick={() => { setIsMenuOpen(false); navigate("/login"); }} className="py-2 text-secondary font-bold">Área do Aluno</a>
+              <a onClick={() => { setIsMenuOpen(false); navigate("/login"); }} className="py-2 text-secondary font-bold">Acessar Sistema</a>
               <Button onClick={handleAgendar} className="w-full rounded-full bg-secondary text-white py-6 mt-4">
                 Agendar Aula Experimental
               </Button>
