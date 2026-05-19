@@ -1,16 +1,59 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { LayoutDashboard, Users, DollarSign, MessageSquare, LogOut, Settings, QrCode, Search, Trash2, Edit3, Camera, Image as ImageIcon } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  Users, 
+  DollarSign, 
+  MessageSquare, 
+  LogOut, 
+  Settings, 
+  QrCode, 
+  Search, 
+  Trash2, 
+  Edit3, 
+  Camera, 
+  Image as ImageIcon,
+  Phone,
+  Plus,
+  Calendar,
+  Check,
+  X,
+  Shield,
+  ArrowRight,
+  Play,
+  RefreshCw,
+  Send,
+  Smartphone,
+  Sparkles,
+  MessageCircle
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { sendWhatsAppMessage } from "@/services/whatsapp";
 import QRCode from "react-qr-code";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  getEvolutionConfig,
+  saveEvolutionConfig,
+  getChatbotFlow,
+  saveChatbotFlow,
+  fetchEvolutionStatus,
+  fetchEvolutionQR,
+  disconnectEvolution,
+  sendEvolutionMessage,
+  getTrialClasses,
+  createTrialClass,
+  updateTrialClassStatus,
+  deleteTrialClass,
+  type EvolutionConfig,
+  type ChatbotFlow,
+  type TrialClass
+} from "@/services/whatsapp";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -22,6 +65,25 @@ const AdminDashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("geral");
   const [galeriaImgs, setGaleriaImgs] = useState<any[]>([]);
+
+  // WhatsApp CRM States
+  const [whatsAppSubTab, setWhatsAppSubTab] = useState<'connect' | 'flow' | 'test' | 'trials'>('connect');
+  const [apiConfig, setApiConfig] = useState<EvolutionConfig>({ apiUrl: '', apiKey: '', instanceName: '' });
+  const [botStatus, setBotStatus] = useState<'CONNECTED' | 'DISCONNECTED' | 'CONNECTING'>('DISCONNECTED');
+  const [qrCodeBase64, setQrCodeBase64] = useState<string>('');
+  const [chatbotFlow, setChatbotFlow] = useState<ChatbotFlow>(getChatbotFlow());
+  const [trialClasses, setTrialClasses] = useState<TrialClass[]>([]);
+  const [simMessages, setSimMessages] = useState<Array<{ sender: 'user' | 'bot'; text: string; time: string }>>([
+    { 
+      sender: 'bot', 
+      text: 'Olá! Seja bem-vinda ao Ballet Dara Rocha! 🩰✨\n\nEu sou a Bella, a assistente virtual do estúdio. Envie "Oi" para começar a simulação do fluxo!', 
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) 
+    }
+  ]);
+  const [simInput, setSimInput] = useState('');
+  const [simStep, setSimStep] = useState<number>(0);
+  const [simTempData, setSimTempData] = useState({ mae: '', crianca: '', whatsapp: '', turma: '' });
+
   // Cálculos dinâmicos baseados nos dados reais
   const totalBailarinas = alunas.length;
   const faturamentoMensal = alunas.reduce((acc, aluna) => acc + (Number(aluna.mensalidade) || 0), 0);
@@ -30,7 +92,41 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchAlunas();
     fetchGaleria();
+    
+    // Carrega configurações do WhatsApp e aulas experimentais
+    const config = getEvolutionConfig();
+    if (config) {
+      setApiConfig(config);
+      checkBotConnection(config);
+    } else {
+      // Inicia com um token simulado por padrão para que o QR code mostre algo de cara
+      setQrToken("BALLET-DARA-ROCHA-SIMULADOR");
+    }
+    loadTrialClasses();
   }, []);
+
+  const loadTrialClasses = async () => {
+    const data = await getTrialClasses();
+    setTrialClasses(data);
+  };
+
+  const checkBotConnection = async (config: EvolutionConfig) => {
+    try {
+      const status = await fetchEvolutionStatus(config);
+      setBotStatus(status);
+      if (status !== 'CONNECTED') {
+        const qrResult = await fetchEvolutionQR(config);
+        if (qrResult.base64) {
+          setQrCodeBase64(qrResult.base64);
+        }
+        if (qrResult.code) {
+          setQrToken(qrResult.code);
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao verificar conexão:", e);
+    }
+  };
 
   const fetchGaleria = async () => {
     const { data, error } = await supabase.storage.from('alunas-media').list('galeria', {
@@ -83,27 +179,201 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleSendWhatsApp = async (aluna: any, type: 'general' | 'billing' = 'general') => {
+  const handleSendWhatsApp = (aluna: any, type: 'general' | 'billing' = 'general') => {
     try {
       const message = type === 'billing' 
         ? `Olá ${aluna.nome}, tudo bem? Passando para lembrar do vencimento da mensalidade de Ballet no valor de R$ ${aluna.mensalidade} em ${aluna.vencimento?.split('-').reverse().join('/')}. Chave PIX: balletdararocha@gmail.com. Caso já tenha pago, favor desconsiderar! ✨`
         : `Olá ${aluna.nome}, aqui é a Dara do Ballet. Como podemos ajudar?`;
 
-      const result = await sendWhatsAppMessage({
-        phoneNumber: aluna.whatsapp.replace(/\D/g, ''), // limpa formatação
-        message: message,
-      });
-      toast.success('Mensagem enviada!');
+      let phone = aluna.whatsapp.replace(/\D/g, '');
+      if (phone && !phone.startsWith('55')) {
+        phone = '55' + phone;
+      }
+
+      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      
+      toast.success('Redirecionando para o WhatsApp...');
     } catch (e: any) {
-      toast.error('Falha ao enviar WhatsApp: ' + e.message);
+      toast.error('Erro ao abrir o WhatsApp.');
     }
   };
 
-  // Generate QR token for WhatsApp bot
-  const generateQr = () => {
-    const token = Math.random().toString(36).substring(2, 10).toUpperCase();
-    setQrToken(token);
-    toast.success('QR Code gerado');
+  // Salvar configuração da Evolution API
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      saveEvolutionConfig(apiConfig);
+      toast.success("Configurações da Evolution API salvas com sucesso!");
+      await checkBotConnection(apiConfig);
+    } catch (err: any) {
+      toast.error("Erro ao se conectar à API: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Desconectar o robô de WhatsApp
+  const handleDisconnect = async () => {
+    setLoading(true);
+    try {
+      const config = getEvolutionConfig();
+      if (config && botStatus === 'CONNECTED') {
+        const success = await disconnectEvolution(config);
+        if (success) {
+          toast.success("Instância do WhatsApp desconectada!");
+          setBotStatus('DISCONNECTED');
+          setQrCodeBase64('');
+          setQrToken('BALLET-DARA-ROCHA-SIMULADOR');
+        } else {
+          toast.error("Falha ao desconectar na API. Resetando localmente...");
+          setBotStatus('DISCONNECTED');
+          setQrToken('BALLET-DARA-ROCHA-SIMULADOR');
+        }
+      } else {
+        // Redefine localmente se for simulador
+        setBotStatus('DISCONNECTED');
+        setQrToken('BALLET-DARA-ROCHA-SIMULADOR');
+        setQrCodeBase64('');
+        toast.success("Conexão simulada encerrada!");
+      }
+    } catch (e) {
+      toast.error("Erro ao processar desconexão.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Salvar alterações no fluxo de atendimento
+  const handleSaveFlow = () => {
+    saveChatbotFlow(chatbotFlow);
+    toast.success("Fluxo de atendimento atualizado!");
+  };
+
+  // Simular a leitura do QR Code
+  const handleSimulateScan = () => {
+    setBotStatus('CONNECTING');
+    toast.info("Iniciando leitor de QR Code...");
+    
+    setTimeout(() => {
+      setQrToken("CONECTADO-SIMULACAO-OK");
+      toast.info("QR Code lido pelo celular...");
+      
+      setTimeout(() => {
+        setBotStatus('CONNECTED');
+        toast.success("WhatsApp Conectado com Sucesso (Simulação)!");
+      }, 1500);
+    }, 1500);
+  };
+
+  // Atualizar status de aula experimental
+  const handleTrialStatusUpdate = async (id: string, status: 'Confirmado' | 'Cancelado') => {
+    try {
+      await updateTrialClassStatus(id, status);
+      toast.success(`Agendamento da aula experimental ${status === 'Confirmado' ? 'confirmado!' : 'cancelado!'}`);
+      loadTrialClasses();
+    } catch (e) {
+      toast.error("Erro ao atualizar o status do agendamento");
+    }
+  };
+
+  // Deletar agendamento de aula experimental
+  const handleRemoveTrialClass = async (id: string) => {
+    try {
+      await deleteTrialClass(id);
+      toast.success("Agendamento excluído!");
+      loadTrialClasses();
+    } catch (e) {
+      toast.error("Erro ao excluir agendamento");
+    }
+  };
+
+  // Lógica do Simulador de Mensagens do Chatbot
+  const handleSendSimMessage = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!simInput.trim()) return;
+
+    const userText = simInput.trim();
+    const timeNow = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    
+    const newMessages = [...simMessages, { sender: 'user' as const, text: userText, time: timeNow }];
+    setSimMessages(newMessages);
+    setSimInput('');
+
+    // Simula resposta do Bot após um pequeno atraso
+    setTimeout(async () => {
+      const replyTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      let botReply = '';
+      let nextStep = simStep;
+      let nextTempData = { ...simTempData };
+
+      const cleanText = userText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+      if (cleanText === 'oi' || cleanText === 'ola' || cleanText === 'menu' || cleanText === 'voltar' || simStep === 0) {
+        botReply = chatbotFlow.welcome;
+        nextStep = 1; // Aguardando opção do menu
+      } else if (simStep === 1) {
+        if (userText === '1') {
+          botReply = chatbotFlow.trialInfo;
+          nextStep = 2; // Aguardando dados da aula
+        } else if (userText === '2') {
+          botReply = chatbotFlow.scheduleInfo;
+        } else if (userText === '3') {
+          botReply = chatbotFlow.priceInfo;
+        } else if (userText === '4') {
+          botReply = chatbotFlow.locationInfo;
+        } else if (userText === '5') {
+          botReply = chatbotFlow.humanContact;
+          nextStep = 0; // Reseta
+        } else {
+          botReply = "Opção inválida. Digite um número de *1* a *5* para selecionar uma das opções do menu.";
+        }
+      } else if (simStep === 2) {
+        // userText contem nome da criança/idade
+        nextTempData.mae = "Mãe do Simulador";
+        nextTempData.crianca = userText;
+        nextTempData.whatsapp = "85986031932";
+        
+        if (cleanText.includes("baby")) nextTempData.turma = "Baby Class (4-5 anos)";
+        else if (cleanText.includes("preliminar") || cleanText.includes("6") || cleanText.includes("7") || cleanText.includes("8")) nextTempData.turma = "Preliminar (6-9 anos)";
+        else if (cleanText.includes("basico") || cleanText.includes("10") || cleanText.includes("11")) nextTempData.turma = "Básico (10-15 anos)";
+        else if (cleanText.includes("adulto")) nextTempData.turma = "Ballet Adulto (16+ anos)";
+        else nextTempData.turma = "Baby Class (4-5 anos)";
+
+        botReply = `Perfeito! Anotei os dados da bailarina. Agora qual seria a melhor data da semana para a aula experimental? Digite no formato *DD/MM/AAAA* (ex: 26/05/2026).`;
+        nextStep = 3; // Aguardando data
+      } else if (simStep === 3) {
+        let dateVal = userText;
+        if (userText.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+          const parts = userText.split('/');
+          dateVal = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        } else {
+          dateVal = new Date().toISOString().split('T')[0];
+        }
+
+        botReply = `Pronto! A aula experimental para a bailarina *${nextTempData.crianca}* na turma *${nextTempData.turma}* foi agendada para o dia *${userText}*! 🎉\n\nNosso atendimento entrará em contato via WhatsApp para confirmar os detalhes. Nos vemos no estúdio! 🩰✨`;
+        
+        try {
+          await createTrialClass({
+            nome_mae: nextTempData.mae,
+            nome_crianca: nextTempData.crianca,
+            whatsapp: nextTempData.whatsapp,
+            turma: nextTempData.turma,
+            data_aula: dateVal
+          });
+          loadTrialClasses();
+        } catch (err) {
+          console.error(err);
+        }
+        
+        nextStep = 0; // Reset
+      }
+
+      setSimStep(nextStep);
+      setSimTempData(nextTempData);
+      setSimMessages(prev => [...prev, { sender: 'bot' as const, text: botReply, time: replyTime }]);
+    }, 800);
   };
 
   const handleUpdateEvolucao = async () => {
@@ -364,30 +634,515 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="whatsapp" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <Card className="border-none shadow-2xl bg-white rounded-[3rem] max-w-2xl mx-auto overflow-hidden">
-              <div className="bg-[#4A5D23] p-10 text-white flex justify-between items-center">
-                <div>
-                  <h3 className="text-3xl font-serif italic">Conexão WhatsApp</h3>
-                  <p className="text-white/50 text-sm mt-1">Escaneie o QR Code para ativar o robô</p>
-                </div>
-                <MessageSquare className="w-12 h-12 text-[#E89A7B]" />
+            <div className="grid lg:grid-cols-12 gap-10">
+              
+              {/* Menu Lateral do Bot */}
+              <div className="lg:col-span-3 flex flex-col gap-3">
+                <Card className="border-none shadow-xl bg-white rounded-[2rem] p-4 flex flex-col gap-2">
+                  <div className="p-4 border-b border-[#4A5D23]/5 mb-2">
+                    <h3 className="font-serif text-lg font-bold text-[#4A5D23]">WhatsApp Bot</h3>
+                    <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Metodologia Dara Rocha</p>
+                  </div>
+                  
+                  {[
+                    { id: 'connect', label: 'Conexão', icon: QrCode, desc: 'Instâncias & QR Code' },
+                    { id: 'flow', label: 'Fluxo do Bot', icon: Sparkles, desc: 'Mensagens do Chatbot' },
+                    { id: 'test', label: 'Testar no Chat', icon: Smartphone, desc: 'Simulador em Tempo Real' },
+                    { id: 'trials', label: 'Aulas Experimentais', icon: Calendar, desc: 'Leads Agendados', badge: trialClasses.filter(t => t.status === 'Pendente').length },
+                  ].map((subTab) => (
+                    <button
+                      key={subTab.id}
+                      onClick={() => setWhatsAppSubTab(subTab.id as any)}
+                      className={`w-full text-left p-4 rounded-2xl flex items-center justify-between group transition-all ${whatsAppSubTab === subTab.id ? 'bg-[#4A5D23] text-white shadow-lg' : 'hover:bg-[#4A5D23]/5 text-[#4A5D23]'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <subTab.icon className={`w-5 h-5 shrink-0 ${whatsAppSubTab === subTab.id ? 'text-[#E89A7B]' : 'text-[#4A5D23]/60 group-hover:scale-110 transition-transform'}`} />
+                        <div>
+                          <p className="font-bold text-sm leading-none">{subTab.label}</p>
+                          <p className={`text-[9px] mt-0.5 ${whatsAppSubTab === subTab.id ? 'text-white/60' : 'text-muted-foreground'}`}>{subTab.desc}</p>
+                        </div>
+                      </div>
+                      {subTab.badge ? (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${whatsAppSubTab === subTab.id ? 'bg-[#E89A7B] text-white' : 'bg-red-500 text-white animate-pulse'}`}>
+                          {subTab.badge}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </Card>
               </div>
-              <CardContent className="p-12 text-center">
-                <div className="bg-[#FDFBF7] aspect-square w-72 mx-auto mb-10 flex items-center justify-center rounded-[2.5rem] border-2 border-dashed border-[#4A5D23]/10 relative group">
-                  {qrToken ? (
-                    <QRCode value={qrToken} size={220} className="w-full h-full p-6" />
-                  ) : (
-                    <div className="text-[#4A5D23]/10 text-center">
-                      <QrCode className="w-48 h-48 mx-auto" />
-                      <p className="text-xs font-bold uppercase tracking-widest mt-4">Aguardando Servidor</p>
+
+              {/* Conteúdo Principal do Bot */}
+              <div className="lg:col-span-9">
+                {whatsAppSubTab === 'connect' && (
+                  <div className="grid md:grid-cols-2 gap-8">
+                    {/* Status e QR Code */}
+                    <Card className="border-none shadow-2xl bg-white rounded-[2.5rem] overflow-hidden flex flex-col">
+                      <div className="bg-[#4A5D23] p-8 text-white flex justify-between items-center">
+                        <div>
+                          <CardTitle className="font-serif italic text-2xl">Conectar Aparelho</CardTitle>
+                          <CardDescription className="text-white/60 text-xs">Escaneie com seu WhatsApp para conectar</CardDescription>
+                        </div>
+                        <QrCode className="w-8 h-8 text-[#E89A7B]" />
+                      </div>
+                      
+                      <CardContent className="p-8 flex-1 flex flex-col justify-center items-center text-center">
+                        {botStatus === 'CONNECTED' ? (
+                          <div className="py-8 space-y-6">
+                            <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center text-green-500 shadow-inner mx-auto animate-pulse">
+                              <Check className="w-12 h-12" />
+                            </div>
+                            <div>
+                              <h4 className="text-2xl font-serif font-bold text-[#4A5D23]">WhatsApp Conectado!</h4>
+                              <p className="text-sm text-muted-foreground mt-1 font-mono">{apiConfig.instanceName || "Instância Padrão"} · Ativa</p>
+                            </div>
+                            <Button 
+                              variant="destructive"
+                              className="rounded-2xl px-8 py-5 h-auto font-bold shadow-md hover:bg-red-600/90 active:scale-95 transition-all"
+                              onClick={handleDisconnect}
+                            >
+                              Desconectar Robô
+                            </Button>
+                          </div>
+                        ) : botStatus === 'CONNECTING' ? (
+                          <div className="py-12 space-y-6">
+                            <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 shadow-inner mx-auto animate-spin">
+                              <RefreshCw className="w-10 h-10" />
+                            </div>
+                            <div>
+                              <h4 className="text-xl font-bold text-[#4A5D23]">Conectando...</h4>
+                              <p className="text-xs text-muted-foreground mt-1">Aguardando a resposta do servidor Evolution</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full flex flex-col items-center">
+                            <div className="bg-[#FDFBF7] aspect-square w-64 p-6 flex items-center justify-center rounded-[2rem] border-2 border-dashed border-[#4A5D23]/10 relative group mb-6">
+                              {qrCodeBase64 ? (
+                                <img src={qrCodeBase64} alt="Evolution QR Code" className="w-full h-full object-contain" />
+                              ) : qrToken ? (
+                                <div className="bg-white p-4 rounded-xl shadow-md">
+                                  <QRCode value={qrToken} size={180} />
+                                </div>
+                              ) : (
+                                <div className="text-[#4A5D23]/30 text-center">
+                                  <QrCode className="w-20 h-20 mx-auto opacity-35" />
+                                  <p className="text-[10px] font-bold uppercase tracking-widest mt-4">Configuração Necessária</p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="space-y-4 w-full">
+                              <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                                Escaneie este QR Code com a câmera do seu WhatsApp (Aparelhos Conectados).
+                              </p>
+                              <div className="flex gap-3 justify-center">
+                                {apiConfig.apiUrl ? (
+                                  <Button 
+                                    className="bg-[#4A5D23] hover:bg-[#3A491B] text-white rounded-xl py-4 h-auto font-bold text-xs"
+                                    onClick={() => checkBotConnection(apiConfig)}
+                                  >
+                                    Recarregar QR Code
+                                  </Button>
+                                ) : (
+                                  <Button 
+                                    className="bg-[#E89A7B] hover:bg-[#D4896D] text-white rounded-xl py-4 h-auto font-bold text-xs animate-bounce"
+                                    onClick={handleSimulateScan}
+                                  >
+                                    Simular Escaneamento
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Configuração da API */}
+                    <Card className="border-none shadow-2xl bg-white rounded-[2.5rem] p-4 flex flex-col justify-between">
+                      <div>
+                        <CardHeader>
+                          <CardTitle className="text-[#4A5D23] font-serif text-2xl">Evolution API</CardTitle>
+                          <CardDescription className="text-xs">Configure os dados da sua API hospedada no Render</CardDescription>
+                        </CardHeader>
+                        
+                        <CardContent className="space-y-6 pt-2">
+                          <form onSubmit={handleSaveConfig} className="space-y-4">
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60 px-1">URL da API (API Endpoint)</label>
+                              <Input
+                                value={apiConfig.apiUrl}
+                                onChange={(e) => setApiConfig({ ...apiConfig, apiUrl: e.target.value })}
+                                placeholder="https://minha-api.onrender.com"
+                                className="rounded-2xl border-[#4A5D23]/10 bg-[#FDFBF7] h-12 text-sm"
+                                required
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60 px-1">Token de Acesso (API Key)</label>
+                              <Input
+                                type="password"
+                                value={apiConfig.apiKey}
+                                onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
+                                placeholder="Insira a API Key da Evolution"
+                                className="rounded-2xl border-[#4A5D23]/10 bg-[#FDFBF7] h-12 text-sm"
+                                required
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60 px-1">Nome da Instância</label>
+                              <Input
+                                value={apiConfig.instanceName}
+                                onChange={(e) => setApiConfig({ ...apiConfig, instanceName: e.target.value })}
+                                placeholder="Ex: ballet-dara"
+                                className="rounded-2xl border-[#4A5D23]/10 bg-[#FDFBF7] h-12 text-sm"
+                                required
+                              />
+                            </div>
+
+                            <Button 
+                              type="submit" 
+                              disabled={loading}
+                              className="w-full bg-[#4A5D23] hover:bg-[#3A491B] text-white rounded-2xl h-12 font-bold text-sm shadow-md mt-4 hover:scale-[1.02] active:scale-95 transition-all"
+                            >
+                              {loading ? "Conectando..." : "Salvar & Conectar"}
+                            </Button>
+                          </form>
+                        </CardContent>
+                      </div>
+                      
+                      <div className="p-6 bg-[#FDFBF7] rounded-[2rem] border border-[#4A5D23]/5 mt-4 text-[11px] text-muted-foreground leading-relaxed">
+                        ⚠️ <strong>Dica:</strong> Se você não possui uma instância da Evolution API, pode clicar em <em>"Simular Escaneamento"</em> para testar todo o fluxo de atendimento de ballet e cadastramento de alunas no sistema sem precisar de configuração externa.
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {whatsAppSubTab === 'flow' && (
+                  <Card className="border-none shadow-2xl bg-white rounded-[2.5rem] overflow-hidden">
+                    <div className="bg-[#4A5D23] p-8 text-white flex justify-between items-center">
+                      <div>
+                        <CardTitle className="font-serif italic text-2xl">Fluxo de Atendimento</CardTitle>
+                        <CardDescription className="text-white/60 text-xs">Customize as mensagens automáticas do seu robô</CardDescription>
+                      </div>
+                      <Sparkles className="w-8 h-8 text-[#E89A7B]" />
                     </div>
-                  )}
-                </div>
-                <Button className="bg-[#4A5D23] hover:bg-[#3A491B] text-white px-12 py-7 rounded-2xl shadow-xl transition-all active:scale-95 font-bold" onClick={generateQr}>
-                  Gerar Novo QR Code
-                </Button>
-              </CardContent>
-            </Card>
+                    
+                    <CardContent className="p-8 space-y-6">
+                      <div className="grid md:grid-cols-2 gap-6">
+                        
+                        <div className="space-y-4">
+                          <div className="p-4 bg-[#FDFBF7] rounded-2xl border border-[#4A5D23]/10">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23] bg-[#4A5D23]/5 px-3 py-1 rounded-full">Menu Principal (Boas-vindas)</span>
+                            <p className="text-xs text-muted-foreground mt-2 mb-3">Enviado assim que o cliente mandar a primeira mensagem.</p>
+                            <Textarea
+                              value={chatbotFlow.welcome}
+                              onChange={(e) => setChatbotFlow({ ...chatbotFlow, welcome: e.target.value })}
+                              className="min-h-[140px] rounded-xl border-[#4A5D23]/10 bg-white font-sans text-xs leading-relaxed"
+                            />
+                          </div>
+
+                          <div className="p-4 bg-[#FDFBF7] rounded-2xl border border-[#4A5D23]/10">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23] bg-[#4A5D23]/5 px-3 py-1 rounded-full">Opção 1: Agendamento</span>
+                            <p className="text-xs text-muted-foreground mt-2 mb-3">Mensagem explicando como agendar a aula experimental.</p>
+                            <Textarea
+                              value={chatbotFlow.trialInfo}
+                              onChange={(e) => setChatbotFlow({ ...chatbotFlow, trialInfo: e.target.value })}
+                              className="min-h-[120px] rounded-xl border-[#4A5D23]/10 bg-white font-sans text-xs leading-relaxed"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="p-4 bg-[#FDFBF7] rounded-2xl border border-[#4A5D23]/10">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23] bg-[#4A5D23]/5 px-3 py-1 rounded-full">Opção 2: Horários & Turmas</span>
+                            <p className="text-xs text-muted-foreground mt-2 mb-3">Exibição de horários, turmas e idades das alunas.</p>
+                            <Textarea
+                              value={chatbotFlow.scheduleInfo}
+                              onChange={(e) => setChatbotFlow({ ...chatbotFlow, scheduleInfo: e.target.value })}
+                              className="min-h-[120px] rounded-xl border-[#4A5D23]/10 bg-white font-sans text-xs leading-relaxed"
+                            />
+                          </div>
+
+                          <div className="p-4 bg-[#FDFBF7] rounded-2xl border border-[#4A5D23]/10">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23] bg-[#4A5D23]/5 px-3 py-1 rounded-full">Opções 3, 4 e 5: Financeiro e Contatos</span>
+                            <p className="text-xs text-muted-foreground mt-2 mb-3">Configurações para as mensagens de mensalidade, PIX, endereço e contato humano.</p>
+                            
+                            <div className="space-y-3 mt-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" className="w-full justify-start rounded-xl text-xs font-bold border-[#4A5D23]/10 bg-white text-[#4A5D23] hover:bg-[#4A5D23]/5">
+                                    💰 Matrículas & Mensalidades
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-md bg-[#FDFBF7] rounded-2xl border-none">
+                                  <DialogHeader>
+                                    <DialogTitle className="font-serif">Mensalidades & Matrículas</DialogTitle>
+                                  </DialogHeader>
+                                  <Textarea 
+                                    value={chatbotFlow.priceInfo} 
+                                    onChange={(e) => setChatbotFlow({ ...chatbotFlow, priceInfo: e.target.value })} 
+                                    className="min-h-[180px] rounded-xl border-[#4A5D23]/10 bg-white text-xs mt-2" 
+                                  />
+                                </DialogContent>
+                              </Dialog>
+
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" className="w-full justify-start rounded-xl text-xs font-bold border-[#4A5D23]/10 bg-white text-[#4A5D23] hover:bg-[#4A5D23]/5">
+                                    📍 Localização e Endereço
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-md bg-[#FDFBF7] rounded-2xl border-none">
+                                  <DialogHeader>
+                                    <DialogTitle className="font-serif">Localização & Contatos</DialogTitle>
+                                  </DialogHeader>
+                                  <Textarea 
+                                    value={chatbotFlow.locationInfo} 
+                                    onChange={(e) => setChatbotFlow({ ...chatbotFlow, locationInfo: e.target.value })} 
+                                    className="min-h-[180px] rounded-xl border-[#4A5D23]/10 bg-[#FDFBF7] text-xs mt-2" 
+                                  />
+                                </DialogContent>
+                              </Dialog>
+
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" className="w-full justify-start rounded-xl text-xs font-bold border-[#4A5D23]/10 bg-white text-[#4A5D23] hover:bg-[#4A5D23]/5">
+                                    👩‍🏫 Falar com Atendente Humano
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-md bg-[#FDFBF7] rounded-2xl border-none">
+                                  <DialogHeader>
+                                    <DialogTitle className="font-serif">Falar com Professora Dara</DialogTitle>
+                                  </DialogHeader>
+                                  <Textarea 
+                                    value={chatbotFlow.humanContact} 
+                                    onChange={(e) => setChatbotFlow({ ...chatbotFlow, humanContact: e.target.value })} 
+                                    className="min-h-[180px] rounded-xl border-[#4A5D23]/10 bg-[#FDFBF7] text-xs mt-2" 
+                                  />
+                                </DialogContent>
+                              </Dialog>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      <div className="pt-6 border-t border-[#4A5D23]/10 flex justify-end">
+                        <Button 
+                          onClick={handleSaveFlow}
+                          className="bg-[#4A5D23] hover:bg-[#3A491B] text-white px-10 py-5 rounded-2xl shadow-lg font-bold"
+                        >
+                          Salvar Alterações do Fluxo
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {whatsAppSubTab === 'test' && (
+                  <div className="grid md:grid-cols-12 gap-8">
+                    
+                    {/* Guia de Teste */}
+                    <div className="md:col-span-5 space-y-6">
+                      <Card className="border-none shadow-xl bg-white rounded-[2rem] p-6">
+                        <h4 className="font-serif text-xl font-bold text-[#4A5D23] mb-3 flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-[#E89A7B]" /> Simulador do Robô
+                        </h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                          Use o celular simulado ao lado para testar a experiência exata de um cliente entrando em contato com a sua escola.
+                        </p>
+                        
+                        <div className="space-y-4">
+                          <div className="p-3 bg-[#FDFBF7] rounded-xl border border-[#4A5D23]/5">
+                            <h5 className="text-xs font-bold text-[#4A5D23] mb-1">Como testar:</h5>
+                            <ol className="text-[11px] text-muted-foreground list-decimal list-inside space-y-1">
+                              <li>Envie <strong>"Oi"</strong> ou <strong>"Menu"</strong> para começar.</li>
+                              <li>Digite <strong>"1"</strong> para simular o agendamento.</li>
+                              <li>Escreva o nome da bailarina (ex: "Clara, 6 anos").</li>
+                              <li>Informe uma data (ex: "26/05/2026").</li>
+                              <li>Veja o agendamento aparecer em tempo real na aba <em>"Aulas Experimentais"</em>!</li>
+                            </ol>
+                          </div>
+
+                          <Button 
+                            variant="outline" 
+                            className="w-full rounded-xl border-[#4A5D23]/10 text-xs font-bold text-[#4A5D23] hover:bg-[#4A5D23]/5"
+                            onClick={() => {
+                              setSimStep(0);
+                              setSimMessages([
+                                { 
+                                  sender: 'bot', 
+                                  text: 'Olá! Seja bem-vinda ao Ballet Dara Rocha! 🩰\n\nEu sou a assistente Bella. Envie "Oi" para iniciar!', 
+                                  time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) 
+                                }
+                              ]);
+                              toast.info("Simulador reiniciado!");
+                            }}
+                          >
+                            Reiniciar Conversa
+                          </Button>
+                        </div>
+                      </Card>
+                    </div>
+
+                    {/* WhatsApp Mock Celular */}
+                    <div className="md:col-span-7 flex justify-center">
+                      <div className="w-[300px] border-[8px] border-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl bg-slate-950 aspect-[9/18] flex flex-col relative">
+                        {/* Celular Top Notch */}
+                        <div className="absolute top-0 inset-x-0 h-4 bg-slate-800 flex items-center justify-center z-30">
+                          <div className="w-16 h-3 bg-black rounded-full" />
+                        </div>
+                        
+                        {/* WhatsApp Header */}
+                        <div className="bg-[#075E54] pt-6 pb-3 px-4 text-white flex items-center gap-2 shadow-md relative z-20">
+                          <div className="w-8 h-8 rounded-full bg-[#E89A7B] text-white flex items-center justify-center font-bold text-xs shadow-inner">
+                            B
+                          </div>
+                          <div>
+                            <p className="font-bold text-xs leading-none text-white font-sans">Bella (Ballet Dara)</p>
+                            <p className="text-[8px] text-white/70 mt-0.5 font-sans">Online · Assistente Virtual</p>
+                          </div>
+                        </div>
+
+                        {/* Conversa Content */}
+                        <div className="flex-1 bg-[#ECE5DD] p-4 overflow-y-auto space-y-4 relative z-10 flex flex-col pt-6 font-sans">
+                          {simMessages.map((msg, i) => (
+                            <div 
+                              key={i} 
+                              className={`max-w-[85%] p-3 rounded-2xl shadow-sm text-xs leading-relaxed relative ${msg.sender === 'user' ? 'bg-[#DCF8C6] text-slate-800 self-end rounded-tr-none' : 'bg-white text-slate-800 self-start rounded-tl-none'}`}
+                            >
+                              <p className="whitespace-pre-line text-[11px]">{msg.text}</p>
+                              <span className="text-[8px] text-slate-400 block text-right mt-1 font-bold">{msg.time}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* WhatsApp Form Input */}
+                        <form onSubmit={handleSendSimMessage} className="bg-[#F4F0EB] p-2 flex gap-2 items-center relative z-20 border-t border-slate-200">
+                          <Input
+                            value={simInput}
+                            onChange={(e) => setSimInput(e.target.value)}
+                            placeholder="Digite uma mensagem..."
+                            className="rounded-full bg-white border-none shadow-inner h-9 px-4 text-xs flex-1 text-slate-800 focus-visible:ring-0 focus-visible:ring-offset-0"
+                          />
+                          <Button 
+                            type="submit" 
+                            size="icon" 
+                            className="rounded-full bg-[#075E54] hover:bg-[#128C7E] w-9 h-9 flex items-center justify-center text-white shrink-0 shadow-md"
+                          >
+                            <Send className="w-4 h-4 fill-white" />
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+
+                {whatsAppSubTab === 'trials' && (
+                  <Card className="border-none shadow-2xl bg-white rounded-[2.5rem] overflow-hidden">
+                    <div className="bg-[#4A5D23] p-8 text-white flex justify-between items-center">
+                      <div>
+                        <CardTitle className="font-serif italic text-2xl">Aulas Experimentais</CardTitle>
+                        <CardDescription className="text-white/60 text-xs">Bailarinas agendadas pelo site ou pelo robô</CardDescription>
+                      </div>
+                      <Calendar className="w-8 h-8 text-[#E89A7B]" />
+                    </div>
+                    
+                    <CardContent className="p-8 font-sans">
+                      {trialClasses.length === 0 ? (
+                        <div className="py-20 text-center text-muted-foreground border-2 border-dashed rounded-3xl bg-[#FDFBF7] border-[#4A5D23]/10">
+                          <p className="italic text-sm">Nenhuma aula experimental agendada por enquanto.</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b border-[#4A5D23]/5 bg-[#FDFBF7]">
+                                <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60">Bailarina</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60">Responsável</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60">Turma</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60">Data Aula</th>
+                                <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60">Status</th>
+                                <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60">Ações</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#4A5D23]/5">
+                              {trialClasses.map((trial) => (
+                                <tr key={trial.id} className="group hover:bg-[#FDFBF7]/40 transition-colors">
+                                  <td className="px-6 py-4">
+                                    <p className="font-bold text-[#4A5D23] text-sm">{trial.nome_crianca}</p>
+                                    <p className="text-[10px] text-muted-foreground font-mono">{new Date(trial.created_at).toLocaleDateString('pt-BR')}</p>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <p className="text-sm font-semibold">{trial.nome_mae}</p>
+                                    <a 
+                                      href={`https://wa.me/${trial.whatsapp.replace(/\D/g, '')}`} 
+                                      target="_blank" 
+                                      className="text-xs text-[#E89A7B] hover:underline inline-flex items-center gap-1 font-bold"
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5 fill-[#E89A7B]/10 text-[#E89A7B]" /> WhatsApp
+                                    </a>
+                                  </td>
+                                  <td className="px-6 py-4 text-xs font-semibold text-slate-700">{trial.turma}</td>
+                                  <td className="px-6 py-4 text-xs font-bold text-[#4A5D23]">
+                                    {trial.data_aula.split('-').reverse().join('/')}
+                                  </td>
+                                  <td className="px-6 py-4 text-center">
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider px-3 py-1 rounded-full ${trial.status === 'Confirmado' ? 'bg-green-50 text-green-600 border border-green-200 font-bold' : trial.status === 'Cancelado' ? 'bg-red-50 text-red-500 border border-red-100 font-bold' : 'bg-amber-50 text-amber-600 border border-amber-200 font-bold'}`}>
+                                      {trial.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 text-right">
+                                    <div className="flex gap-1 justify-end">
+                                      {trial.status === 'Pendente' && (
+                                        <>
+                                          <Button 
+                                            size="icon" 
+                                            variant="ghost" 
+                                            className="h-8 w-8 rounded-lg text-green-600 hover:bg-green-50"
+                                            onClick={() => handleTrialStatusUpdate(trial.id, 'Confirmado')}
+                                            title="Confirmar Aula"
+                                          >
+                                            <Check className="w-4 h-4" />
+                                          </Button>
+                                          <Button 
+                                            size="icon" 
+                                            variant="ghost" 
+                                            className="h-8 w-8 rounded-lg text-red-500 hover:bg-red-50"
+                                            onClick={() => handleTrialStatusUpdate(trial.id, 'Cancelado')}
+                                            title="Cancelar Aula"
+                                          >
+                                            <X className="w-4 h-4" />
+                                          </Button>
+                                        </>
+                                      )}
+                                      <Button 
+                                        size="icon" 
+                                        variant="ghost" 
+                                        className="h-8 w-8 rounded-lg text-[#E89A7B] hover:bg-rose-50"
+                                        onClick={() => handleRemoveTrialClass(trial.id)}
+                                        title="Excluir"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+            </div>
           </TabsContent>
 
           <TabsContent value="alunas" className="animate-in fade-in slide-in-from-bottom-4 duration-500">

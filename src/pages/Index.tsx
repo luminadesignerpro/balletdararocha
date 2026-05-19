@@ -7,6 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { createTrialClass } from "@/services/whatsapp";
 import heroImg from "@/assets/hero-ballet.jpg";
 import logoImg from "@/assets/logo-dara-rocha.png";
 import galeria1 from "@/assets/galeria-1.jpg";
@@ -67,8 +70,9 @@ const depoimentos = [
 
 const Index = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({ mae: "", crianca: "", whatsapp: "", turma: "" });
+  const [formData, setFormData] = useState({ mae: "", crianca: "", whatsapp: "", turma: "", data_aula: "" });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [dynamicGaleria, setDynamicGaleria] = useState<any[]>([]);
   const whatsappUrl = "https://wa.me/5585986031932";
 
@@ -93,7 +97,33 @@ const Index = () => {
   const currentGaleria = dynamicGaleria.length > 0 ? dynamicGaleria : galeriaImgs;
 
   const handleAgendar = () => {
-    window.open(whatsappUrl, "_blank");
+    setIsScheduleModalOpen(true);
+  };
+
+  const handleSubmitSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createTrialClass({
+        nome_mae: formData.mae,
+        nome_crianca: formData.crianca,
+        whatsapp: formData.whatsapp,
+        turma: formData.turma,
+        data_aula: formData.data_aula
+      });
+      
+      const formatMsg = `Olá Tia Dara! Me chamo ${formData.mae} e gostaria de agendar uma aula experimental de ballet para a ${formData.crianca} na turma ${formData.turma} no dia ${formData.data_aula.split('-').reverse().join('/')}.`;
+      const redirectUrl = `https://wa.me/5585986031932?text=${encodeURIComponent(formatMsg)}`;
+      
+      toast.success("Aula experimental agendada! Redirecionando para o WhatsApp...");
+      setIsScheduleModalOpen(false);
+      setFormData({ mae: "", crianca: "", whatsapp: "", turma: "", data_aula: "" });
+      
+      setTimeout(() => {
+        window.open(redirectUrl, '_blank');
+      }, 1200);
+    } catch (err: any) {
+      toast.error("Erro ao registrar agendamento: " + err.message);
+    }
   };
 
   const scrollToTurmas = () => {
@@ -456,6 +486,91 @@ const Index = () => {
         </div>
       </footer>
       {floatingWhatsApp}
+
+      {/* Modal de Agendamento de Aula Experimental */}
+      <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>
+        <DialogContent className="max-w-md bg-[#FDFBF7] rounded-[2.5rem] border-none p-0 overflow-hidden shadow-2xl">
+          <DialogHeader className="bg-[#4A5D23] p-8 text-white">
+            <DialogTitle className="text-3xl font-serif italic text-white flex items-center gap-2">
+              <span>🩰</span> Aula Experimental
+            </DialogTitle>
+            <DialogDescription className="text-white/70 text-xs">
+              Preencha os dados abaixo para agendarmos a aula experimental da sua bailarina!
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmitSchedule} className="p-8 space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60 px-1">Seu Nome (Mãe/Responsável)</label>
+              <Input
+                value={formData.mae}
+                onChange={(e) => setFormData({ ...formData, mae: e.target.value })}
+                placeholder="Ex: Ana Silva"
+                className="rounded-2xl border-[#4A5D23]/10 bg-[#FDFBF7] h-12"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60 px-1">Nome da Bailarina</label>
+              <Input
+                value={formData.crianca}
+                onChange={(e) => setFormData({ ...formData, crianca: e.target.value })}
+                placeholder="Ex: Beatriz Silva"
+                className="rounded-2xl border-[#4A5D23]/10 bg-[#FDFBF7] h-12"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60 px-1">WhatsApp Contato</label>
+                <Input
+                  value={formData.whatsapp}
+                  onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                  placeholder="85 9..."
+                  className="rounded-2xl border-[#4A5D23]/10 bg-[#FDFBF7] h-12"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60 px-1">Data Desejada</label>
+                <Input
+                  type="date"
+                  value={formData.data_aula}
+                  onChange={(e) => setFormData({ ...formData, data_aula: e.target.value })}
+                  className="rounded-2xl border-[#4A5D23]/10 bg-[#FDFBF7] h-12 text-[#4A5D23] font-bold"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60 px-1">Turma de Interesse</label>
+              <Select
+                value={formData.turma}
+                onValueChange={(val) => setFormData({ ...formData, turma: val })}
+                required
+              >
+                <SelectTrigger className="rounded-2xl border-[#4A5D23]/10 bg-[#FDFBF7] h-12 text-left">
+                  <SelectValue placeholder="Selecione a turma" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#FDFBF7] border-[#4A5D23]/10 rounded-xl">
+                  <SelectItem value="Baby Class (4-5 anos)">Baby Class (4 a 5 anos)</SelectItem>
+                  <SelectItem value="Preliminar (6-9 anos)">Preliminar I e II (6 a 9 anos)</SelectItem>
+                  <SelectItem value="Básico (10-15 anos)">Básico I e II (10 a 15 anos)</SelectItem>
+                  <SelectItem value="Ballet Adulto (16+ anos)">Ballet Adulto (16+ anos)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button type="submit" className="w-full bg-[#4A5D23] hover:bg-[#3A491B] text-white h-14 rounded-2xl shadow-lg transition-all font-bold text-base mt-2">
+              🩰 Confirmar & Enviar no WhatsApp
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
