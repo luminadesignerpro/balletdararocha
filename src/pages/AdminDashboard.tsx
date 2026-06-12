@@ -536,9 +536,9 @@ const AdminDashboard = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-10">
           <TabsList className="bg-white/50 backdrop-blur-md border border-[#4A5D23]/10 p-1.5 rounded-2xl shadow-sm inline-flex">
             <TabsTrigger value="geral" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Geral</TabsTrigger>
-            <TabsTrigger value="alunas" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Matrículas</TabsTrigger>
+            <TabsTrigger value="alunas" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Alunas</TabsTrigger>
             <TabsTrigger value="matriculas" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white relative">
-              Fichas
+              Matrículas
               {matriculas.filter(m => m.status === 'Pendente').length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                   {matriculas.filter(m => m.status === 'Pendente').length}
