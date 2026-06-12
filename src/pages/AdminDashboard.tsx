@@ -54,6 +54,11 @@ import {
   type ChatbotFlow,
   type TrialClass
 } from "@/services/whatsapp";
+import {
+  getMatriculas,
+  atualizarStatusMatricula,
+  type Matricula
+} from "@/services/matriculas";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -65,6 +70,7 @@ const AdminDashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("geral");
   const [galeriaImgs, setGaleriaImgs] = useState<any[]>([]);
+  const [matriculas, setMatriculas] = useState<Matricula[]>([]);
 
   // WhatsApp CRM States
   const [whatsAppSubTab, setWhatsAppSubTab] = useState<'connect' | 'flow' | 'test' | 'trials'>('connect');
@@ -92,6 +98,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchAlunas();
     fetchGaleria();
+    fetchMatriculas();
     
     // Carrega configurações do WhatsApp e aulas experimentais
     const config = getEvolutionConfig();
@@ -141,6 +148,11 @@ const AdminDashboard = () => {
       });
       setGaleriaImgs(urls);
     }
+  };
+
+  const fetchMatriculas = async () => {
+    const data = await getMatriculas();
+    setMatriculas(data);
   };
 
   const fetchAlunas = async () => {
@@ -481,6 +493,7 @@ const AdminDashboard = () => {
           {[
             { id: 'geral', label: 'Dashboard', icon: LayoutDashboard },
             { id: 'alunas', label: 'Alunas', icon: Users },
+            { id: 'matriculas', label: 'Matrículas', icon: Shield },
             { id: 'financeiro', label: 'Financeiro', icon: DollarSign },
             { id: 'galeria', label: 'Galeria do Site', icon: ImageIcon },
             { id: 'whatsapp', label: 'WhatsApp Bot', icon: MessageSquare },
@@ -524,6 +537,14 @@ const AdminDashboard = () => {
           <TabsList className="bg-white/50 backdrop-blur-md border border-[#4A5D23]/10 p-1.5 rounded-2xl shadow-sm inline-flex">
             <TabsTrigger value="geral" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Geral</TabsTrigger>
             <TabsTrigger value="alunas" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Matrículas</TabsTrigger>
+            <TabsTrigger value="matriculas" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white relative">
+              Fichas
+              {matriculas.filter(m => m.status === 'Pendente').length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  {matriculas.filter(m => m.status === 'Pendente').length}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="financeiro" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Financeiro</TabsTrigger>
             <TabsTrigger value="galeria" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Galeria</TabsTrigger>
             <TabsTrigger value="whatsapp" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-[#4A5D23] data-[state=active]:text-white">Bot</TabsTrigger>
@@ -1143,6 +1164,122 @@ const AdminDashboard = () => {
               </div>
 
             </div>
+          </TabsContent>
+
+          <TabsContent value="matriculas" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <Card className="border-none shadow-2xl bg-white rounded-[3rem] overflow-hidden">
+              <div className="bg-[#4A5D23] p-10 text-white flex justify-between items-center">
+                <div>
+                  <h3 className="text-3xl font-serif italic">Fichas de Matrícula</h3>
+                  <p className="text-white/50 text-sm mt-1">Gerencie as matrículas e o processo de assinatura digital</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-[10px] uppercase tracking-widest text-white/40">Pendentes</p>
+                    <p className="text-2xl font-serif font-bold text-[#E89A7B]">{matriculas.filter(m => m.status === 'Pendente').length}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] uppercase tracking-widest text-white/40">Assinadas</p>
+                    <p className="text-2xl font-serif font-bold text-green-400">{matriculas.filter(m => m.status === 'Assinado').length}</p>
+                  </div>
+                  <Shield className="w-12 h-12 text-[#E89A7B] ml-4" />
+                </div>
+              </div>
+              <CardContent className="p-0">
+                {matriculas.length === 0 ? (
+                  <div className="py-20 text-center text-muted-foreground border-t border-[#4A5D23]/5">
+                    <p className="italic text-sm">Nenhuma ficha de matrícula registrada ainda.</p>
+                    <p className="text-xs mt-2">As fichas preenchidas pelo site aparecem aqui automaticamente.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-[#4A5D23]/5 bg-[#FDFBF7]">
+                          <th className="px-8 py-5 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Aluna</th>
+                          <th className="px-8 py-5 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Responsável</th>
+                          <th className="px-8 py-5 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Modalidade</th>
+                          <th className="px-8 py-5 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Data</th>
+                          <th className="px-8 py-5 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</th>
+                          <th className="px-8 py-5 text-right text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#4A5D23]/5">
+                        {matriculas.map((mat) => {
+                          const sigLink = `${window.location.origin}/balletdararocha/assinar/${mat.token}`;
+                          const waMsg = `Olá ${mat.nome_mae || mat.nome_aluna}! Segue o link para assinar a ficha de matrícula do Ballet Dara Rocha:\n\n${sigLink}`;
+                          return (
+                            <tr key={mat.id} className="group hover:bg-[#FDFBF7]/50 transition-colors">
+                              <td className="px-8 py-5">
+                                <p className="font-bold text-[#4A5D23]">{mat.nome_aluna}</p>
+                                {mat.apelido && <p className="text-xs text-muted-foreground italic">&ldquo;{mat.apelido}&rdquo;</p>}
+                              </td>
+                              <td className="px-8 py-5">
+                                <p className="text-sm font-semibold">{mat.nome_mae || mat.nome_pai || '—'}</p>
+                                {(mat.whatsapp_mae || mat.whatsapp_pai) && (
+                                  <p className="text-xs text-muted-foreground">{mat.whatsapp_mae || mat.whatsapp_pai}</p>
+                                )}
+                              </td>
+                              <td className="px-8 py-5">
+                                <p className="text-xs text-muted-foreground">{mat.modalidades?.join(', ') || mat.turma || '—'}</p>
+                              </td>
+                              <td className="px-8 py-5 text-xs text-muted-foreground">
+                                {new Date(mat.created_at).toLocaleDateString('pt-BR')}
+                              </td>
+                              <td className="px-8 py-5 text-center">
+                                <span className={`text-[9px] font-bold uppercase tracking-wider px-3 py-1 rounded-full ${
+                                  mat.status === 'Assinado'
+                                    ? 'bg-green-50 text-green-600 border border-green-200'
+                                    : mat.status === 'Contrato Enviado'
+                                    ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                                    : 'bg-amber-50 text-amber-600 border border-amber-200'
+                                }`}>
+                                  {mat.status === 'Assinado' ? '✅ Assinado' : mat.status === 'Contrato Enviado' ? '📤 Enviado' : '⏳ Pendente'}
+                                </span>
+                              </td>
+                              <td className="px-8 py-5">
+                                <div className="flex gap-2 justify-end flex-wrap">
+                                  {mat.status === 'Pendente' && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        window.open(`https://wa.me/${(mat.whatsapp_mae || mat.whatsapp_pai || '').replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`, '_blank');
+                                        atualizarStatusMatricula(mat.id, 'Contrato Enviado').then(fetchMatriculas);
+                                      }}
+                                      className="bg-[#25D366] hover:bg-[#1DA851] text-white rounded-xl gap-1.5 text-xs font-bold shadow-sm"
+                                    >
+                                      <Send className="w-3 h-3" /> Enviar Contrato
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => { navigator.clipboard.writeText(sigLink); toast.success('Link copiado!'); }}
+                                    className="rounded-xl border-[#4A5D23]/20 text-[#4A5D23] text-xs gap-1.5"
+                                  >
+                                    <ArrowRight className="w-3 h-3" /> Link
+                                  </Button>
+                                  {mat.assinatura_url && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => window.open(mat.assinatura_url, '_blank')}
+                                      className="rounded-xl border-green-200 text-green-600 text-xs gap-1.5"
+                                    >
+                                      <Check className="w-3 h-3" /> Ver Assinatura
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="alunas" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
