@@ -37,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import QRCode from "react-qr-code";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MatriculaCompletaModal } from "@/components/MatriculaCompletaModal";
 import {
   getEvolutionConfig,
   saveEvolutionConfig,
@@ -68,6 +69,7 @@ const AdminDashboard = () => {
   const [qrToken, setQrToken] = useState<string>('');
   const [editingAluna, setEditingAluna] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMatriculaModalOpen, setIsMatriculaModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("geral");
   const [galeriaImgs, setGaleriaImgs] = useState<any[]>([]);
   const [matriculas, setMatriculas] = useState<Matricula[]>([]);
@@ -1288,10 +1290,21 @@ const AdminDashboard = () => {
               <div className="lg:col-span-4">
                 <Card className="border-none shadow-2xl bg-white rounded-[2.5rem] p-4">
                   <CardHeader>
-                    <CardTitle className="text-[#4A5D23] font-serif text-2xl">Nova Matrícula</CardTitle>
-                    <p className="text-xs text-muted-foreground italic">Adicione uma nova estrela à escola</p>
+                    <CardTitle className="text-[#4A5D23] font-serif text-2xl">Cadastro Rápido</CardTitle>
+                    <p className="text-xs text-muted-foreground italic">Para alunas com ficha já assinada</p>
                   </CardHeader>
                   <CardContent>
+                    <Button 
+                      onClick={() => setIsMatriculaModalOpen(true)}
+                      className="w-full mb-6 bg-[#E89A7B] hover:bg-[#D4896D] text-white rounded-2xl h-14 shadow-lg font-bold text-base gap-2"
+                    >
+                      <ClipboardList className="w-5 h-5" /> Preencher Ficha Completa
+                    </Button>
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="h-px bg-[#4A5D23]/10 flex-1"></div>
+                      <span className="text-[10px] uppercase tracking-widest text-[#4A5D23]/40 font-bold">Ou cadastre direto</span>
+                      <div className="h-px bg-[#4A5D23]/10 flex-1"></div>
+                    </div>
                     <form onSubmit={handleAddAluna} className="space-y-6">
                       <div className="space-y-2">
                         <label className="text-[10px] font-bold uppercase tracking-widest text-[#4A5D23]/60 px-1">Nome da Bailarina</label>
@@ -1525,6 +1538,11 @@ const AdminDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <MatriculaCompletaModal 
+        isOpen={isMatriculaModalOpen} 
+        onClose={() => setIsMatriculaModalOpen(false)} 
+        onSuccess={() => fetchMatriculas()} 
+      />
     </div>
   );
 };
