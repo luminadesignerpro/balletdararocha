@@ -28,7 +28,8 @@ import {
   Send,
   Smartphone,
   Sparkles,
-  MessageCircle
+  MessageCircle,
+  ClipboardList
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
